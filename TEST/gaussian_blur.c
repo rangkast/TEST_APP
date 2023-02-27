@@ -24,7 +24,7 @@ void laplacian_filter(Image *input, Image *output) {
     int height = input->height;
     float laplacian[3][3] = {
         { -1,  -1, -1 },
-        { -1, 10, -1  },
+        { -1, 10,  -1 },
         { -1,  -1, -1 }
     };
     int i, j, k, l;
@@ -38,7 +38,7 @@ void laplacian_filter(Image *input, Image *output) {
                     sum += val * laplacian[k + offset][l + offset];
                 }
             }
-            output->data[i * width + j].gray = (unsigned char) fmin(fmax(sum, 0), 255);
+            memset(&output->data[i*width + j].gray, (unsigned char)fmin(fmax(0, sum), 255), sizeof(Pixel));
         }
     }    
 }
@@ -100,7 +100,7 @@ void gaussian_filter(Image *input, Image *output, float** kernel) {
                     sum += val * kernel[k + offset][l + offset];
                 }
             }
-           output->data[i * width + j].gray = (unsigned char)sum;
+            memset(&output->data[i*width + j].gray, (unsigned char)fmin(fmax(0, sum), 255), sizeof(Pixel));
         }
     }
 //     for (i = offset; i < height - offset; i++) {
@@ -123,28 +123,6 @@ void file_rw(int rw, Image *input, char* path) {
     fclose(fp);
 }
 
-void add_weighted(Image *input, Image *output, float amount) {
-    int width = input->width;
-    int height = input->height;
-    int i, j;
-    int offset = 1;
-    // for (i = offset; i < height - offset; i++) {
-    //     for (j = offset; j < width - offset; j++) {
-    //         float high_pass_value = (float)input->data[i*width + j].gray - (float)output->data[i*width + j].gray;
-    //         high_pass_value = (unsigned char)fmin(fmax(0, high_pass_value), 255);
-    //         memset(&output->data[i*width + j].gray, (unsigned char)high_pass_value, sizeof(Pixel));
-           
-    //     }
-    // }
-    // for (i = offset; i < height - offset; i++) {
-    //     for (j = offset; j < width - offset; j++) {
-    //         float scaled_value = (float)input->data[i*width + j].gray + (float)(amount * ((float)output->data[i].gray - (float)input->data[i].gray));
-    //         scaled_value = (unsigned char)fmin(fmax(0, scaled_value), 255);
-    //         memset(&output->data[i*width + j].gray, (unsigned char)scaled_value, sizeof(Pixel));
-    //     }
-    // }
-}
-
 
 void filter_threshold(Image *input, int threshold) {
     int width = input->width;
@@ -160,7 +138,7 @@ void filter_threshold(Image *input, int threshold) {
 }
 
 
-void increase_grayscale_sharpness(Image *input, Image *output, int kernel_size, float amount, float radius) {
+void increase_grayscale_sharpness(Image *input, Image *output, int kernel_size, float weight1, float weight2, float radius) {
     float** kernel = make_gaussian_kernel(kernel_size, radius);
     int width = input->width;
     int height = input->height;
@@ -175,8 +153,8 @@ void increase_grayscale_sharpness(Image *input, Image *output, int kernel_size, 
     int offset = 1;
     for (i = offset; i < height - offset; i++) {
         for (j = offset; j < width - offset; j++) {
-            float scaled_value = (float)input->data[i*width + j].gray + (float)(amount * (float)(output->data[i*width + j].gray));            
-            scaled_value = (unsigned char)fmin(fmax(0, scaled_value), 255);
+            float scaled_value = (float)(weight1*input->data[i*width + j].gray) + (float)(weight2 * (output->data[i*width + j].gray));            
+            scaled_value = fmin(fmax(0, scaled_value), 255);
             memset(&output->data[i*width + j].gray, (unsigned char)scaled_value, sizeof(Pixel));
         }
     }
@@ -199,7 +177,7 @@ void unsharp_masking(Image* input_image, Image* output_image, int kernel_size, f
     for (i = offset; i < height - offset; i++) {
         for (j = offset; j < width - offset; j++) {
             float high_pass_value = (float)input_image->data[i*width + j].gray - (float)output_image->data[i*width + j].gray;
-            high_pass_value = (unsigned char)fmin(fmax(0, high_pass_value), 255);
+            high_pass_value = fmin(fmax(0, high_pass_value), 255);
             memset(&output_image->data[i*width + j].gray, (unsigned char)high_pass_value, sizeof(Pixel));
         }
     }
@@ -207,13 +185,13 @@ void unsharp_masking(Image* input_image, Image* output_image, int kernel_size, f
     for (i = offset; i < height - offset; i++) {
         for (j = offset; j < width - offset; j++) {
             float scaled_value = (float)input_image->data[i*width + j].gray + (float)(amount * (float)(output_image->data[i*width + j].gray - input_image->data[i*width + j].gray));            
-            scaled_value = (unsigned char)fmin(fmax(0, scaled_value), 255);
+            scaled_value = fmin(fmax(0, scaled_value), 255);
             memset(&output_image->data[i*width + j].gray, (unsigned char)scaled_value, sizeof(Pixel));
         }
     }
 }
 
-void gaussain_added(Image *input, Image *output, int kernel_size, float upscale, float downscale, float radius) {
+void gaussain_added(Image *input, Image *output, int kernel_size, float weight1, float weight2, float radius) {
     float** kernel = make_gaussian_kernel(kernel_size, radius);
     int width = input->width;
     int height = input->height;
@@ -222,14 +200,13 @@ void gaussain_added(Image *input, Image *output, int kernel_size, float upscale,
 
     Image sharpen_image;
     sharpen_image.data = (Pixel*)malloc(width * height * sizeof(Pixel));
-    memcpy(&sharpen_image, input, sizeof(sharpen_image));
+    // memcpy(&sharpen_image, input, sizeof(sharpen_image));
     laplacian_filter(output, &sharpen_image);
 
-    int i, j;
     int offset = 1;
-    for (i = offset; i < height - offset; i++) {
-        for (j = offset; j < width - offset; j++) {
-            float scaled_value = (float)(output->data[i*width + j].gray) * upscale + (float)(sharpen_image.data[i*width + j].gray) * downscale;
+    for (int i = offset; i < height - offset; i++) {
+        for (int j = offset; j < width - offset; j++) {
+            float scaled_value = (float)output->data[i*width + j].gray * weight1 + (float)sharpen_image.data[i*width + j].gray * weight2;
             scaled_value = fmin(fmax(0, scaled_value), 255);
             memset(&output->data[i*width + j].gray, (unsigned char)scaled_value, sizeof(Pixel));            
         }
@@ -243,7 +220,7 @@ int main() {
         "../sync_test/40cm_1/50us/CAM0_1065748889956.bmp",        
         "../sync_test/20cm_1/100us/CAM0_50696563155398.bmp",        
     };
-    char *PATH = path[2];
+    char *PATH = path[0];
     input.width = 640;
     input.height = 400;
     input.data = (Pixel*)malloc(input.width * input.height * sizeof(Pixel));
@@ -257,11 +234,9 @@ int main() {
 
 
     /* idea 1*/
-    gaussain_added(&input, & output, 5, 1.5, 0.5, 3.0);
-
+    gaussain_added(&input, &output, 5, 1.5, 1.0, 3.0);
     /* idea 2 */
-    // increase_grayscale_sharpness(&input, &output, 5, 0.5, 3.0);
-
+    // increase_grayscale_sharpness(&input, &output, 5, 1.0, 0.5, 3.0);
     /* idea 3*/
     // unsharp_masking(&input, &output, 5, -1.5, 3.0); 
 
