@@ -1,7 +1,7 @@
 import cv2
 import os
 import numpy as np
-
+from PIL import Image
 
 def increase_grayscale_sharpness(image):
     # Convert the image to grayscale
@@ -26,8 +26,13 @@ CAP_PROP_FRAME_WIDTH = 1280
 CAP_PROP_FRAME_HEIGHT = 960
 
 # Read the image file
-img = cv2.imread('./sync_test/40cm_1/80us/CAM0_2643939471749.bmp')
+img = cv2.imread('./TEST_APP/sync_test/40cm_1/80us/CAM0_2643939471749.bmp')
 img = cv2.resize(img, (CAP_PROP_FRAME_WIDTH, CAP_PROP_FRAME_HEIGHT))
+
+# Convert to Pillow image
+pillow_image = Image.fromarray(img)
+# Save the image in a different file
+pillow_image.save('./TEST_APP/sync_test/40cm_1/50us/CAM0_2643939471749_resize.bmp')
 
 ret, img_contour_binary = cv2.threshold(img, 100, 255, cv2.THRESH_TOZERO)
 draw_frame = cv2.cvtColor(img_contour_binary, cv2.COLOR_BGR2GRAY)
@@ -103,6 +108,12 @@ cv2.destroyAllWindows()
 #                     if inputs == 'exit':
 #                         bboxes.clear()
 #                         break
+#         elif KEY & 0xFF == 27:
+#             cv2.destroyAllWindows()
+#             break
+
+# print(bboxes)
+
 #         elif KEY & 0xFF == 27:
 #             cv2.destroyAllWindows()
 #             break
