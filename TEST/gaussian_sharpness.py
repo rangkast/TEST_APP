@@ -63,8 +63,8 @@ cv2.destroyAllWindows()
 # cv2.imshow('blurred', blurred)
 # cv2.imshow('Original', draw_frame)
 # cv2.imshow('Sharpened', sharpened)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 # # Draw the contours around the object in red (BGR color format) with thickness of 2 pixels
